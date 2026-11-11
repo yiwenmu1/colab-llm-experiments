@@ -28,6 +28,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--minutes',type=float,default=120)
     p.add_argument('--units',type=float,default=25)
+    p.add_argument('--high-mem',action='store_true')
     p.add_argument('--gpus',nargs='+',choices=['A100','T4'],default=['A100','T4'])
     a=p.parse_args()
     if not 3<a.minutes<=120 or not 1<a.units<=25:
@@ -133,7 +134,7 @@ def main():
     try:
         for gpu in a.gpus:
             emit('REQUEST '+gpu)
-            rc=monitored(['new','-s',session,'--gpu',gpu],'allocate-'+gpu,timeout=300)
+            rc=monitored(['new','-s',session,'--gpu',gpu]+(['--high-mem'] if a.high_mem else []),'allocate-'+gpu,timeout=300)
             emit((state/('allocate-'+gpu+'.log')).read_text())
             if rc==0:
                 allocated=True
