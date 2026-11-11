@@ -9,3 +9,26 @@ outputs/
 *.pth
 *.safetensors
 *.ckpt
+
+# Reproduction workflow
+__pycache__/
+.ipynb_checkpoints/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+runs/
+outputs/
+checkpoints/
+.cache/
+# Experiment outputs and user dialogues belong in Drive, not Git.
+*_diagnosis.jsonl
+*_generation.jsonl

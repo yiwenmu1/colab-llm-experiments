@@ -1,0 +1,8 @@
+{
+  "github": "git@github.com:yiwenmu1/colab-llm-experiments.git",
+  "ssh_alias": "colab-gpu",
+  "colab_session": "llm",
+  "remote_project": "/content/llm-project",
+  "drive_root": "/content/drive/MyDrive/colab-llm-experiments",
+  "legacy_results": "/content/drive/MyDrive/CoPoLLM/public_subset_eval"
+}
