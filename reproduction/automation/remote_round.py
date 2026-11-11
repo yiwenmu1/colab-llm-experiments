@@ -15,7 +15,8 @@ import time
 _started = time.monotonic()
 _finished = threading.Event()
 def watchdog():
-    if not _finished.wait(SECONDS_LEFT):
+    time.sleep(SECONDS_LEFT)
+    if True:
         print('REMOTE DEADLINE: releasing runtime', flush=True)
         try:
             subprocess.run(['sync'], timeout=10)
@@ -99,5 +100,12 @@ print('ROUND_LOG:',str(jobdir),flush=True)
 # Successful write-back precedes local-controller teardown. A failure still triggers CLI cleanup.
 snapshot()
 _finished.set()
+# Independent of the controller: leave a short final-snapshot retrieval window, then release.
+def release_completed_vm():
+    from google.colab import runtime
+    runtime.unassign()
+_release_timer=threading.Timer(90,release_completed_vm)
+_release_timer.daemon=True
+_release_timer.start()
 if result.returncode:
     raise RuntimeError(f'Evaluation exit {result.returncode}; inspect saved job state')
