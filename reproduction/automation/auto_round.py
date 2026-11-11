@@ -27,6 +27,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--minutes',type=float,default=120)
     p.add_argument('--units',type=float,default=25)
+    p.add_argument('--gpus',nargs='+',choices=['A100','T4'],default=['A100','T4'])
     a=p.parse_args()
     if not 3<a.minutes<=120 or not 1<a.units<=25:
         p.error('This authorized round supports at most 120 minutes and 25 CU')
@@ -90,7 +91,7 @@ def main():
     signal.signal(signal.SIGTERM, interrupt)
     signal.signal(signal.SIGINT, interrupt)
     try:
-        for gpu in ('A100','T4'):
+        for gpu in a.gpus:
             emit('REQUEST '+gpu)
             rc=monitored(['new','-s',session,'--gpu',gpu],'allocate-'+gpu,timeout=120)
             emit((state/('allocate-'+gpu+'.log')).read_text())
