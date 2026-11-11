@@ -80,6 +80,11 @@ with (jobdir/'setup.log').open('a') as log:
     subprocess.run([sys.executable,'-m','pip','install','-r',str(automation/'requirements-colab.txt')],
                    stdout=log,stderr=subprocess.STDOUT,check=True,
                    timeout=max(1,SECONDS_LEFT-120-(time.monotonic()-_started)))
+env_code = '''import json,sys,torch,importlib.metadata as m
+print(json.dumps({'python':sys.version,'torch':torch.__version__,'cuda':torch.version.cuda,
+'gpu':torch.cuda.get_device_name(0),'gpu_memory_bytes':torch.cuda.get_device_properties(0).total_memory,
+'packages':{k:m.version(k) for k in ['transformers','peft','accelerate','bitsandbytes','huggingface_hub','scikit-learn']}},indent=2))'''
+(jobdir/'environment.json').write_text(subprocess.check_output([sys.executable,'-c',env_code],text=True))
 remaining=max(1,SECONDS_LEFT-120-(time.monotonic()-_started))
 print('DEPENDENCIES READY; full evaluation starting',flush=True)
 result = subprocess.run([sys.executable,str(automation/'job.py'),'--state-dir',str(jobdir),
