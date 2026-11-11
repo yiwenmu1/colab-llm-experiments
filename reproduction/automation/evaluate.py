@@ -17,13 +17,14 @@ from contextlib import nullcontext
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--out', type=Path, required=True)
 p.add_argument('--run-name', default='qwen3_8b_nf4_ctx2048_v1')
+p.add_argument('--allow-ephemeral-output', action='store_true', help='Controller snapshots results to persistent storage')
 p.add_argument('--limit', type=int, default=10)
 p.add_argument('--full', action='store_true', help='Only after reviewing output protocol on validation data')
 a = p.parse_args()
 if a.limit <= 0 or not re.fullmatch(r'[A-Za-z0-9_.-]+', a.run_name):
     p.error('limit 必须为正数，run-name 只能含字母数字、点、横线和下划线')
 OUT = a.out
-if not Path('/content/drive/MyDrive').is_dir():
+if not a.allow_ephemeral_output and not Path('/content/drive/MyDrive').is_dir():
     raise RuntimeError('请先在 Colab Notebook 中挂载 Drive，再从 SSH 启动')
 OUT.mkdir(parents=True, exist_ok=True)
 RUN_NAME = a.run_name

@@ -11,6 +11,7 @@ import signal
 import subprocess
 import sys
 import tarfile
+import zipfile
 import time
 
 HERE=Path(__file__).resolve().parent
@@ -48,9 +49,37 @@ def main():
     (state/'budget.json').write_text(json.dumps({'initial_balance':balance,'unit_cap':a.units,
         'minutes_cap':a.minutes,'session':session,'scope':'981 x 2 classify, frozen v1, no API'},indent=2))
     emit(f'STATE_DIR {state}; starting balance {balance}')
+    seed={}
+    seed_dir=state/'seed';seed_dir.mkdir()
+    for name in ('qwen3_8b_nf4_ctx2048_v1_diagnosis.jsonl','qwen3_8b_nf4_ctx2048_v1_manifest.json',
+                 'qwen3_8b_nf4_ctx2048_v1_revisions.json','sample_manifest.json',
+                 'qwen3_8b_nf4_ctx2048_v1_metrics.json','qwen3_8b_nf4_ctx2048_v1_pip-freeze.txt'):
+        path=seed_dir/name
+        r=cli('download','-s','llm','/content/drive/MyDrive/colab-llm-experiments/public_subset_eval/'+name,str(path))
+        if r.returncode: raise RuntimeError('CPU Drive seed download failed: '+name)
+        seed[name]=base64.b64encode(path.read_bytes()).decode()
     started=time.monotonic()
     last_usage=0
     last_rate=rate
+    last_snapshot=0
+    def fetch_snapshot():
+        temp=state/'snapshot.download.zip'
+        r=cli('download','-s',session,'/content/copollm-snapshot.zip',str(temp),timeout=30)
+        if r.returncode: return False
+        with zipfile.ZipFile(temp) as z:
+            for name in z.namelist():
+                target=(state/'results'/name).resolve()
+                if not target.is_relative_to((state/'results').resolve()):
+                    raise ValueError('unsafe snapshot path')
+                target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes(z.read(name))
+        temp.replace(state/'snapshot.zip')
+        # Existing CPU session already has Drive authorization; upload atomic snapshot only.
+        r=cli('upload','-s','llm',str(state/'snapshot.zip'),
+            '/content/drive/MyDrive/colab-llm-experiments/'+round_id+'-snapshot.zip',timeout=30)
+        if r.returncode: raise RuntimeError('Persistent snapshot upload failed')
+        emit('SNAPSHOT saved locally and to Drive')
+        return True
     def check_budget():
         nonlocal last_usage,last_rate
         now=time.monotonic()
@@ -71,9 +100,13 @@ def main():
         with (state/(label+'.log')).open('w') as log:
             proc=subprocess.Popen(['colab',*args],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             begin=time.monotonic()
+            last_snapshot=time.monotonic()
             try:
                 while proc.poll() is None:
                     check_budget()
+                    if label=='execute' and time.monotonic()-last_snapshot>=45:
+                        if not fetch_snapshot(): emit('Snapshot not ready yet')
+                        last_snapshot=time.monotonic()
                     if timeout and time.monotonic()-begin>timeout:
                         raise RuntimeError(label+' timed out')
                     time.sleep(2)
@@ -107,8 +140,6 @@ def main():
             cli('stop','-s',session)
         if not allocated: raise RuntimeError('A100 and T4 unavailable; no retries')
         check_budget()
-        if monitored(['drivemount','-s',session], 'mount', timeout=180) != 0:
-            raise RuntimeError('Drive authorization failed')
         data=io.BytesIO()
         with tarfile.open(fileobj=data,mode='w:gz') as archive:
             for name in ('evaluate.py','job.py','requirements-colab.txt'):
@@ -118,19 +149,23 @@ def main():
                 archive.addfile(info,io.BytesIO(body))
         commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,text=True).strip()
         payload=data.getvalue()
-        prelude='\n'.join([f'PAYLOAD={base64.b64encode(payload).decode()!r}',
+        prelude='\n'.join([f'SEED={seed!r}',f'PAYLOAD={base64.b64encode(payload).decode()!r}',
             f'PAYLOAD_SHA256={hashlib.sha256(payload).hexdigest()!r}',
             f'CODE_COMMIT={commit!r}',f'ROUND_ID={round_id!r}',
             f'SECONDS_LEFT={max(1,a.minutes*60-(time.monotonic()-started)-45)!r}'])+'\n'
         driver=state/'remote_driver.py'
         driver.write_text(prelude+(HERE/'remote_round.py').read_text())
         rc=monitored(['exec','-s',session,'--timeout','180','-f',str(driver)],'execute')
+        if not fetch_snapshot(): raise RuntimeError('No final snapshot retrieved')
         emit('EXECUTE returncode '+str(rc))
         emit((state/'execute.log').read_text()[-6500:])
         exitcode=rc
     except BaseException as e:
         emit('ROUND stopped: '+repr(e))
     finally:
+        if allocated:
+            try: fetch_snapshot()
+            except Exception as e: emit('FINAL SNAPSHOT error '+repr(e))
         released=False
         for attempt in range(3):
             try:
