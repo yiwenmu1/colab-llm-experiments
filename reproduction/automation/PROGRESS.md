@@ -14,3 +14,11 @@ https://colab.research.google.com/drive/182UHTEUncT9c_WCqLdDBUIjUMPqGSjw8
 下一轮顺序：CPU 审计已有预测 → 训练集划验证集 → 验证集确定输出协议 → 固定代码/config/revision → 全量预测与重算指标 → 原数据两组 SFT 20-step 检查。
 
 代码、配置、摘要进 GitHub；原始预测、对话、模型、训练检查点放 Drive。更换协议须更换 run-name；禁止将不同条件的结果混入 v1。
+
+## 2026-11-11 实际连接与归档核验
+
+- 已从 SSH 读取旧 Drive 文件，复制 6 个结果/配置文件至新持久化目录；保留旧目录。
+- 核验 base 10 行、10 个唯一键、10 条达到上限；copollm 10 行、10 个唯一键、0 条达到上限。
+- 已使用官方 CLI 恢复 Drive 挂载；当前同名 llm 会话为 CPU，未为本轮同步新申请 GPU。
+- 代码已提交至既有 GitHub main；首次自动化提交 58335b3。
+- CPU 任务管理器在远端通过；GPU CLI 评测尚未实测，完整评测未执行。
