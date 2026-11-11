@@ -52,3 +52,13 @@ run_remote.sh 的清理依赖本机脚本持续运行；电脑睡眠、断网、
 本次新增工具同步到远端 /content/llm-project 后正常提交推送，保留远端既有历史。
 
 官方 CLI：https://github.com/googlecolab/google-colab-cli
+
+## 已授权自动轮次（120 分钟 / 25 CU）
+
+`python3 reproduction/automation/auto_round.py` 自动申请独立 A100 会话，失败尝试一次 T4，执行冻结 v1 的 981×2 分类评测。
+不会干扰既有 llm CPU 会话，不调用外部教师 API。
+本地每 30 秒检查账户余额和消耗率，预留至少 1 CU / 2 分钟余量；远端另有独立期限保护。
+完成、失败或预算到限后，控制器调用官方 stop 并查询后端确认具体 endpoint 消失。
+控制器日志和 final.json 在 runs/eval-时间戳；远端日志与状态在 Drive/jobs/同一轮次目录。
+远端强制释放、网络异常、Drive FUSE 延迟仍可能影响最后几条记录的持久化；完整 JSONL 可续跑，损坏末行必须备份核查。
+这是两组公开子集分类评测，保留 v1 的基座达到上限问题，不宣称完整训练方法或论文原测试集复现。
