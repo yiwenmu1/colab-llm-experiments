@@ -93,7 +93,7 @@ def main():
     try:
         for gpu in a.gpus:
             emit('REQUEST '+gpu)
-            rc=monitored(['new','-s',session,'--gpu',gpu],'allocate-'+gpu,timeout=120)
+            rc=monitored(['new','-s',session,'--gpu',gpu],'allocate-'+gpu,timeout=300)
             emit((state/('allocate-'+gpu+'.log')).read_text())
             if rc==0:
                 allocated=True
