@@ -85,6 +85,10 @@ def main():
     exitcode=1
     allocated=False
     endpoint=None
+    def interrupt(signum, frame):
+        raise InterruptedError('Controller interrupted; releasing owned session')
+    signal.signal(signal.SIGTERM, interrupt)
+    signal.signal(signal.SIGINT, interrupt)
     try:
         for gpu in ('A100','T4'):
             emit('REQUEST '+gpu)
@@ -102,6 +106,8 @@ def main():
             cli('stop','-s',session)
         if not allocated: raise RuntimeError('A100 and T4 unavailable; no retries')
         check_budget()
+        if monitored(['drivemount','-s',session], 'mount', timeout=180) != 0:
+            raise RuntimeError('Drive authorization failed')
         data=io.BytesIO()
         with tarfile.open(fileobj=data,mode='w:gz') as archive:
             for name in ('evaluate.py','job.py','requirements-colab.txt'):
