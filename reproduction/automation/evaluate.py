@@ -19,10 +19,15 @@ p.add_argument('--out', type=Path, required=True)
 p.add_argument('--run-name', default='qwen3_8b_nf4_ctx2048_v1')
 p.add_argument('--allow-ephemeral-output', action='store_true', help='Controller snapshots results to persistent storage')
 p.add_argument('--limit', type=int, default=10)
+p.add_argument('--shard-id',type=int,default=0)
+p.add_argument('--num-shards',type=int,default=1)
 p.add_argument('--full', action='store_true', help='Only after reviewing output protocol on validation data')
 a = p.parse_args()
 if a.limit <= 0 or not re.fullmatch(r'[A-Za-z0-9_.-]+', a.run_name):
     p.error('limit 必须为正数，run-name 只能含字母数字、点、横线和下划线')
+if not 0 <= a.shard_id < a.num_shards:
+    p.error('Invalid shard index')
+torch.set_num_threads(1)
 OUT = a.out
 if not a.allow_ephemeral_output and not Path('/content/drive/MyDrive').is_dir():
     raise RuntimeError('请先在 Colab Notebook 中挂载 Drive，再从 SSH 启动')
@@ -131,6 +136,8 @@ base=AutoModelForCausalLM.from_pretrained(BASE,revision=lock['base'],
 assert len(tokenizer)<=base.get_input_embeddings().num_embeddings, '词表不匹配，先核查 tokenizer，勿盲目 resize'
 model=PeftModel.from_pretrained(base,str(local))
 model.eval()
+torch.cuda.empty_cache()
+(OUT/(RUN_NAME+'_ready.json')).write_text(json.dumps({'ready':True,'free_bytes':torch.cuda.mem_get_info()[0]}))
 (OUT/(RUN_NAME+'_pip-freeze.txt')).write_text(subprocess.check_output([sys.executable,'-m','pip','freeze'],text=True))
 manifest={'commit':COMMIT,'base':BASE,'adapter_repo':ADAPTER_REPO,'subdir':SUBDIR,'revisions':lock,
           'max_input':MAX_INPUT,'max_new':MAX_NEW,'torch':torch.__version__,'cuda':torch.version.cuda,
@@ -173,6 +180,7 @@ def predict(sample, task='classify', use_adapter=True):
 
 
 selected=samples if LIMIT is None else samples[:LIMIT]
+selected=[s for i,s in enumerate(selected) if i%a.num_shards==a.shard_id]
 results_path=OUT/(RUN_NAME+'_diagnosis.jsonl')
 existing=[]
 if results_path.exists():

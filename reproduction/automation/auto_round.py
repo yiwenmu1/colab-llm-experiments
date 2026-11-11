@@ -62,9 +62,10 @@ def main():
     last_usage=0
     last_rate=rate
     last_snapshot=0
+    last_good_snapshot=[time.monotonic()]
     def fetch_snapshot():
         temp=state/'snapshot.download.zip'
-        r=cli('download','-s',session,'/content/copollm-snapshot.zip',str(temp),timeout=30)
+        r=cli('download','-s',session,'/content/copollm-snapshot.zip',str(temp),timeout=60)
         if r.returncode: return False
         with zipfile.ZipFile(temp) as z:
             for name in z.namelist():
@@ -76,8 +77,9 @@ def main():
         temp.replace(state/'snapshot.zip')
         # Existing CPU session already has Drive authorization; upload atomic snapshot only.
         r=cli('upload','-s','llm',str(state/'snapshot.zip'),
-            '/content/drive/MyDrive/colab-llm-experiments/'+round_id+'-snapshot.zip',timeout=30)
+            '/content/drive/MyDrive/colab-llm-experiments/'+round_id+'-snapshot.zip',timeout=60)
         if r.returncode: raise RuntimeError('Persistent snapshot upload failed')
+        last_good_snapshot[0]=time.monotonic()
         emit('SNAPSHOT saved locally and to Drive')
         return True
     def check_budget():
@@ -105,7 +107,12 @@ def main():
                 while proc.poll() is None:
                     check_budget()
                     if label=='execute' and time.monotonic()-last_snapshot>=45:
-                        if not fetch_snapshot(): emit('Snapshot not ready yet')
+                        try:
+                            if not fetch_snapshot(): emit('Snapshot not ready yet')
+                        except Exception as exc:
+                            emit('Snapshot retryable failure: '+repr(exc))
+                            if time.monotonic()-last_good_snapshot[0]>240:
+                                raise RuntimeError('No persistent snapshot for 4 minutes')
                         last_snapshot=time.monotonic()
                     if timeout and time.monotonic()-begin>timeout:
                         raise RuntimeError(label+' timed out')
@@ -142,7 +149,7 @@ def main():
         check_budget()
         data=io.BytesIO()
         with tarfile.open(fileobj=data,mode='w:gz') as archive:
-            for name in ('evaluate.py','job.py','requirements-colab.txt'):
+            for name in ('evaluate.py','job.py','requirements-colab.txt','recompute_metrics.py'):
                 path=HERE/name
                 info=tarfile.TarInfo('reproduction/automation/'+name)
                 body=path.read_bytes();info.size=len(body)

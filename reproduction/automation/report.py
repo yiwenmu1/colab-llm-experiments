@@ -1,5 +1,6 @@
 """Verify full prediction coverage and write an evidence-bounded Markdown report."""
 import argparse
+import hashlib
 from collections import Counter
 import json
 from pathlib import Path
@@ -67,12 +68,15 @@ text+='''
 - HRMDR 是金标高危样本中未预测为高危的比例（越低越好），仅 42 条，每漏一条约改变 2.38 个百分点。
 - Macro F1 为固定八类的多标签指示矩阵宏平均。格式失败不能静默剔除；解析得到的标签保留计分。
 - 公开子集、量化、模板和上下文条件与论文原评测可能不同，不用论文参考值作为本子集验收线。
-- v1 前 10 条来自此前 A100 运行，其余来自本轮续跑；模型 revision 与推理协议保持一致，软件/硬件记录以各轮 provenance 为准。跨轮数值完全一致性未另行验证。
+- v1 由此前 A100、短时 T4 和本轮 A100 分轮续跑得到。模型 revision 与推理协议保持一致，但 PyTorch 和 GPU 环境存在变化，实际记录以各轮 environment/provenance 为准；跨轮数值完全一致性未另行验证。
 
 ## 可追溯配置
 
 '''
 text+='```json\n'+json.dumps(config,ensure_ascii=False,indent=2)+'\n```\n'
+checksums={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in a.results_dir.iterdir() if f.is_file() and f.suffix in ('.json','.jsonl','.txt')}
+(a.results_dir/'checksums.json').write_text(json.dumps(checksums,indent=2))
+text+='\n原始预测与配置的 SHA-256 摘要保存在结果目录 checksums.json。\n'
 a.out.parent.mkdir(parents=True,exist_ok=True)
 a.out.write_text(text)
 print('Verified 1962 unique predictions. Report:',a.out)
