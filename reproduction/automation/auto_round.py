@@ -166,6 +166,10 @@ def main():
         if not fetch_snapshot(): raise RuntimeError('No final snapshot retrieved')
         emit('EXECUTE returncode '+str(rc))
         emit((state/'execute.log').read_text()[-6500:])
+        saved=state/'results/public_subset_eval/qwen3_8b_nf4_ctx2048_v1_diagnosis.jsonl'
+        saved_rows=[json.loads(l) for l in saved.read_text().splitlines() if l.strip()]
+        if len({(r['key'],r['condition']) for r in saved_rows})!=1962:
+            raise RuntimeError('Full coverage not reached; preserve partial results')
         exitcode=rc
     except BaseException as e:
         emit('ROUND stopped: '+repr(e))

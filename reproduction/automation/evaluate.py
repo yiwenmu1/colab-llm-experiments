@@ -22,21 +22,21 @@ p.add_argument('--limit', type=int, default=10)
 p.add_argument('--shard-id',type=int,default=0)
 p.add_argument('--num-shards',type=int,default=1)
 p.add_argument('--full', action='store_true', help='Only after reviewing output protocol on validation data')
-a = p.parse_args()
-if a.limit <= 0 or not re.fullmatch(r'[A-Za-z0-9_.-]+', a.run_name):
+args = p.parse_args()
+if args.limit <= 0 or not re.fullmatch(r'[A-Za-z0-9_.-]+', args.run_name):
     p.error('limit 必须为正数，run-name 只能含字母数字、点、横线和下划线')
-if not 0 <= a.shard_id < a.num_shards:
+if not 0 <= args.shard_id < args.num_shards:
     p.error('Invalid shard index')
 torch.set_num_threads(1)
-OUT = a.out
-if not a.allow_ephemeral_output and not Path('/content/drive/MyDrive').is_dir():
+OUT = args.out
+if not args.allow_ephemeral_output and not Path('/content/drive/MyDrive').is_dir():
     raise RuntimeError('请先在 Colab Notebook 中挂载 Drive，再从 SSH 启动')
 OUT.mkdir(parents=True, exist_ok=True)
-RUN_NAME = a.run_name
-LIMIT = None if a.full else a.limit
+RUN_NAME = args.run_name
+LIMIT = None if args.full else args.limit
 MAX_INPUT = 2048
 MAX_NEW = 128
-assert torch.cuda.is_available(), '需要 GPU 运行时'
+assert torch.cudargs.is_available(), '需要 GPU 运行时'
 random.seed(42); np.random.seed(42); torch.manual_seed(42)
 
 results_path = OUT/(RUN_NAME+'_diagnosis.jsonl')
@@ -96,8 +96,8 @@ for di,conv in enumerate(test):
     history=[]
     for ti,msg in enumerate(conv['messages']):
         if msg.get('role')=='user' and isinstance(msg.get('annotation'),dict):
-            a=msg['annotation']; tags=normalize_tags(a.get('bias_tags'))
-            valid = bool(tags) and all(x in LABELS for x in tags) and a.get('risk_level') in VALID_RISKS and a.get('bias_intensity') in VALID_INTENSITIES
+            a=msg['annotation']; tags=normalize_tags(args.get('bias_tags'))
+            valid = bool(tags) and all(x in LABELS for x in tags) and args.get('risk_level') in VALID_RISKS and args.get('bias_intensity') in VALID_INTENSITIES
             if valid:
                 samples.append(dict(key=f'{di}:{ti}',history=list(history),user=msg['content'],
                                     gold_tags=tags,gold_risk=a['risk_level'],gold_intensity=a['bias_intensity']))
@@ -136,12 +136,12 @@ base=AutoModelForCausalLM.from_pretrained(BASE,revision=lock['base'],
 assert len(tokenizer)<=base.get_input_embeddings().num_embeddings, '词表不匹配，先核查 tokenizer，勿盲目 resize'
 model=PeftModel.from_pretrained(base,str(local))
 model.eval()
-torch.cuda.empty_cache()
-(OUT/(RUN_NAME+'_ready.json')).write_text(json.dumps({'ready':True,'free_bytes':torch.cuda.mem_get_info()[0]}))
+torch.cudargs.empty_cache()
+(OUT/(RUN_NAME+'_ready.json')).write_text(json.dumps({'ready':True,'free_bytes':torch.cudargs.mem_get_info()[0]}))
 (OUT/(RUN_NAME+'_pip-freeze.txt')).write_text(subprocess.check_output([sys.executable,'-m','pip','freeze'],text=True))
 manifest={'commit':COMMIT,'base':BASE,'adapter_repo':ADAPTER_REPO,'subdir':SUBDIR,'revisions':lock,
           'max_input':MAX_INPUT,'max_new':MAX_NEW,'torch':torch.__version__,'cuda':torch.version.cuda,
-          'gpu':torch.cuda.get_device_name(0),'quantization':'NF4 double quant FP16',
+          'gpu':torch.cudargs.get_device_name(0),'quantization':'NF4 double quant FP16',
           'template_sha256':hashlib.sha256(json.dumps(constants,ensure_ascii=False,sort_keys=True).encode()).hexdigest()}
 manifest_path=OUT/(RUN_NAME+'_manifest.json')
 if manifest_path.exists():
@@ -180,7 +180,8 @@ def predict(sample, task='classify', use_adapter=True):
 
 
 selected=samples if LIMIT is None else samples[:LIMIT]
-selected=[s for i,s in enumerate(selected) if i%a.num_shards==a.shard_id]
+selected=[s for i,s in enumerate(selected) if i%args.num_shards==args.shard_id]
+(OUT/(RUN_NAME+'_ready.json')).write_text(json.dumps({'ready':True,'free_bytes':torch.cuda.mem_get_info()[0]}))
 results_path=OUT/(RUN_NAME+'_diagnosis.jsonl')
 existing=[]
 if results_path.exists():

@@ -83,7 +83,7 @@ try:
         # Stagger model initialization to limit peak VRAM and avoid concurrent repository checkouts.
         ready=out/(name+'_ready.json')
         while not ready.exists():
-            if proc.poll() is not None:raise RuntimeError(f'Worker {i} failed during loading')
+            if any(previous.poll() not in (None,0) for previous in processes):raise RuntimeError(f'Worker failed before initialization completed')
             if time.monotonic()-_started>SECONDS_LEFT-180:raise TimeoutError('Deadline during loading')
             time.sleep(2)
         print('WORKER READY',i,ready.read_text(),flush=True)
