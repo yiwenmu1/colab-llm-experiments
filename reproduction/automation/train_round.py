@@ -133,7 +133,7 @@ def main():
                 break
             # Do not leak partial allocations before trying fallback.
             cli('stop','-s',session)
-        if not allocated: raise RuntimeError('A100 and T4 unavailable; no retries')
+        if not allocated: raise RuntimeError('Requested GPU types unavailable: '+', '.join(a.gpus))
         check_budget()
         data=io.BytesIO()
         with tarfile.open(fileobj=data,mode='w:gz') as archive:

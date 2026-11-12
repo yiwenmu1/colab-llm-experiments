@@ -1,0 +1,56 @@
+{
+  "scope": "8 fixed validation examples only; no final-test efficacy claim",
+  "conditions": {
+    "initial": {
+      "count": 8,
+      "all_fields_found": 7,
+      "hit_limit": 8,
+      "exact_field_matches": {
+        "label_text": 0,
+        "risk": 5,
+        "intensity": 6
+      },
+      "predicted_label_counts": {
+        "灾难化、过度概括、个人化": 1,
+        "个人化、灾难化": 1,
+        "应该句式、灾难化": 1,
+        "null": 1,
+        "情感推理、非黑即白、读心术": 1,
+        "情感推理、过度概括": 1,
+        "情感推理、灾难化": 1,
+        "情感推理、非黑即白、灾难化": 1
+      }
+    },
+    "generation_only": {
+      "count": 8,
+      "all_fields_found": 8,
+      "hit_limit": 0,
+      "exact_field_matches": {
+        "label_text": 0,
+        "risk": 6,
+        "intensity": 7
+      },
+      "predicted_label_counts": {
+        "灾难化、过度概括": 1,
+        "个人化、灾难化": 2,
+        "情感推理、灾难化": 2,
+        "情感推理、个人化、灾难化": 1,
+        "情感推理、过度概括": 1,
+        "情感推理、非黑即白": 1
+      }
+    },
+    "joint": {
+      "count": 8,
+      "all_fields_found": 8,
+      "hit_limit": 0,
+      "exact_field_matches": {
+        "label_text": 3,
+        "risk": 5,
+        "intensity": 7
+      },
+      "predicted_label_counts": {
+        "情感推理": 8
+      }
+    }
+  }
+}
