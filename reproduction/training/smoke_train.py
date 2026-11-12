@@ -1,5 +1,7 @@
 """Real Qwen3-8B 20-step controls. No published adapter, no test set, no external LLM API."""
-import argparse,hashlib,json,random,time
+import argparse,hashlib,json,random,time,os
+os.environ["USE_TF"]="0"
+os.environ["TOKENIZERS_PARALLELISM"]="false"
 from pathlib import Path
 import numpy as np
 import torch

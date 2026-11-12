@@ -84,7 +84,7 @@ def encode(example,tokenizer,c,max_length=1024,max_response=256):
     # Exact generation prefix; labels can never fall back to whole-prompt supervision.
     return dict(input_ids=prefix+response,attention_mask=[1]*(len(prefix)+len(response)),
         labels=[-100]*len(prefix)+response,prompt_tokens=len(prefix),target_tokens=len(response),
-        task=e['task'],key=e['key'],dropped_history_messages=dropped)
+        task=e['task'],key=e['key'],dialogue_index=e['dialogue_index'],turn=e['turn'],dropped_history_messages=dropped)
 
 def collate(features,pad_token_id):
     import torch

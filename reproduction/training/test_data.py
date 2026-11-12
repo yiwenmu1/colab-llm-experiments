@@ -26,6 +26,8 @@ class Tests(unittest.TestCase):
         self.assertTrue(all(x==-100 for x in f['labels'][:f['prompt_tokens']]))
         self.assertEqual(f['labels'][f['prompt_tokens']:],f['input_ids'][f['prompt_tokens']:])
         self.assertEqual(f['labels'][-1],0)
+        self.assertEqual(f['dialogue_index'],0)
+        self.assertEqual(f['turn'],0)
         with self.assertRaises(ValueError):encode(e,Tokenizer(),c,1,256)
     def test_current_turn_never_previous_history(self):
         self.assertEqual(current_utterance({'context':'患者：旧发言','s_text':'患者当前发言：新发言\n认知偏差：灾难化'}),'新发言')

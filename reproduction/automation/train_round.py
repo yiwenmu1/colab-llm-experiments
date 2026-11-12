@@ -68,7 +68,7 @@ def main():
                 target.write_bytes(z.read(name))
         temp.replace(state/'snapshot.zip')
         last_good_snapshot[0]=time.monotonic()
-        emit('SNAPSHOT saved locally and to Drive')
+        emit('SNAPSHOT saved locally')
         return True
     def check_budget():
         nonlocal last_usage,last_rate
