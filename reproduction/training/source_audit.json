@@ -1,0 +1,21 @@
+{
+  "upstream_generation_samples": 17060,
+  "upstream_duplicate_current_user": 17060,
+  "fixed": {
+    "train": {
+      "classification": 4643,
+      "generation": 15337,
+      "excluded_annotation_or_empty": 0
+    },
+    "validation": {
+      "classification": 520,
+      "generation": 1723,
+      "excluded_annotation_or_empty": 0
+    }
+  },
+  "split_dialogues": {
+    "train": 1212,
+    "validation": 134
+  },
+  "test_data_used_for_training": false
+}
