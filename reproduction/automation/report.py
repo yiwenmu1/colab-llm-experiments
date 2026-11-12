@@ -74,7 +74,7 @@ text+='''
 
 '''
 text+='```json\n'+json.dumps(config,ensure_ascii=False,indent=2)+'\n```\n'
-checksums={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in a.results_dir.iterdir() if f.is_file() and f.suffix in ('.json','.jsonl','.txt')}
+checksums={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in a.results_dir.iterdir() if f.is_file() and f.suffix in ('.json','.jsonl','.txt') and f.name!='checksums.json'}
 (a.results_dir/'checksums.json').write_text(json.dumps(checksums,indent=2))
 text+='\n原始预测与配置的 SHA-256 摘要保存在结果目录 checksums.json。\n'
 a.out.parent.mkdir(parents=True,exist_ok=True)

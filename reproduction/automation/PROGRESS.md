@@ -22,3 +22,14 @@ https://colab.research.google.com/drive/182UHTEUncT9c_WCqLdDBUIjUMPqGSjw8
 - 已使用官方 CLI 恢复 Drive 挂载；当前同名 llm 会话为 CPU，未为本轮同步新申请 GPU。
 - 代码已提交至既有 GitHub main；首次自动化提交 58335b3。
 - CPU 任务管理器在远端通过；GPU CLI 评测尚未实测，完整评测未执行。
+
+## 全量完成（2026-11-12）
+
+- 基座和作者 LoRA 各 981 条，共 1962 条唯一预测，金标/支持数核对和独立 sklearn 重算通过。
+- Macro F1：base 0.267038；作者 LoRA 0.338608。
+- HRMDR：base 22/42=0.523810；作者 LoRA 25/42=0.595238。本子集安全漏判未改善。
+- 格式失败：base 67/981；作者 LoRA 42/981。
+- 输出达到 128-token 上限：base 981/981；作者 LoRA 0/981。
+- 单块 A100 80GB、4 个独立 batch=1 工作进程完成剩余样本；总 GPU 租用 101.23 分钟。
+- GPU 自动释放核验通过；最后复查无活动运行时。无教师/模拟器 API 调用。
+- 完整原始预测与记录已保存本地和 Drive；报告位于 reproduction/reports。
