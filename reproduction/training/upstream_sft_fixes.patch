@@ -1,0 +1,83 @@
+--- a/task4/sft_unified.py
++++ b/task4/sft_unified.py
+@@ -111,12 +111,7 @@
+             from transformers import DataCollatorForLanguageModeling
+ 
+             if not self.use_masking or not features:
+-                # 回退到默认 collator
+-                default_collator = DataCollatorForLanguageModeling(
+-                    tokenizer=self.tokenizer,
+-                    mlm=self.mlm
+-                )
+-                return default_collator(features)
++                raise ValueError("Completion-only masking unavailable; refusing full-prompt training")
+ 
+             # 基本的 instruction masking 实现
+             batch = self.tokenizer.pad(
+@@ -128,12 +123,12 @@
+             labels = batch["input_ids"].clone()
+ 
+             for i, input_ids in enumerate(batch["input_ids"]):
+-                # 查找响应模板的位置
+-                for j in range(len(input_ids) - len(self.response_token_ids) + 1):
+-                    if input_ids[j:j+len(self.response_token_ids)].tolist() == self.response_token_ids:
+-                        # 将响应模板之前的所有 token 的 label 设为 -100
+-                        labels[i, :j + len(self.response_token_ids)] = -100
+-                        break
++                matches = [j for j in range(len(input_ids)-len(self.response_token_ids)+1)
++                           if input_ids[j:j+len(self.response_token_ids)].tolist()==self.response_token_ids]
++                if len(matches) != 1:
++                    raise ValueError("Missing or ambiguous response boundary")
++                labels[i, :matches[0]+len(self.response_token_ids)] = -100
++                labels[i, batch["attention_mask"][i]==0] = -100
+ 
+             batch["labels"] = labels
+             return batch
+@@ -298,7 +293,7 @@
+ 
+                     # 构造输入：系统提示(生成) + 历史对话（截止到上一条user消息） + 当前user发言
+                     input_msgs = [{"role": "system", "content": SYS_PROMPT_GENERATION}]
+-                    input_msgs.extend(history)
++                    input_msgs.extend(history[:-1])
+                     input_msgs.append({"role": "user", "content": user_msg['content']})
+ 
+                     # 构造完整对话
+@@ -718,7 +713,7 @@
+     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="梯度累积步数")
+     parser.add_argument("--learning_rate", type=float, default=2e-4, help="学习率")
+     parser.add_argument("--num_train_epochs", type=int, default=3, help="训练轮数")
+-    parser.add_argument("--max_steps", type=int, default=120, help="最大训练步数")
++    parser.add_argument("--max_steps", type=int, default=-1, help="最大训练步数；-1 使用 epochs")
+     parser.add_argument("--save_steps", type=int, default=200, help="保存步数")
+     parser.add_argument("--logging_steps", type=int, default=1, help="日志记录步数")
+     parser.add_argument("--save_total_limit", type=int, default=None, help="保存的检查点数量限制（None表示保存所有）")
+@@ -952,6 +947,12 @@
+         # ============================
+     }
+ 
++    import inspect
++    supported = inspect.signature(SFTConfig).parameters
++    length_key = "max_length" if "max_length" in supported else "max_seq_length" if "max_seq_length" in supported else None
++    if length_key is None:
++        raise RuntimeError("Installed SFTConfig exposes no supported sequence-length field")
++    training_arguments_dict[length_key] = args.max_length
+     training_arguments = SFTConfig(**training_arguments_dict)
+ 
+     # --- 初始化数据收集器 (优化 A：Instruction Masking) ---
+@@ -972,15 +973,7 @@
+         if DEBUG_MODE:
+             print("   🐛 Debug: 将尝试只对响应部分计算损失")
+     except Exception as e:
+-        print(f"❌ DataCollatorForCompletionOnlyLM 初始化失败: {e}")
+-        print("   将完全禁用 Instruction Masking")
+-        from transformers import DataCollatorForLanguageModeling
+-        collator = DataCollatorForLanguageModeling(
+-            tokenizer=tokenizer,
+-            mlm=False
+-        )
+-        if DEBUG_MODE:
+-            print("   🐛 Debug: 将对整个序列计算损失（包括指令和响应）")
++        raise RuntimeError("Completion-only collator initialization failed; training stopped") from e
+ 
+     # --- 初始化训练器 ---
+     print("初始化 DualTaskTrainer...")

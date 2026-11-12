@@ -1,10 +1,13 @@
 """CPRL state contracts. External judgments are required; never synthesize success."""
 import math,re
-from data import annotation
+try:
+    from .data import annotation
+except ImportError:
+    from data import annotation
 
 def current_utterance(state):
     if isinstance(state.get('current_utterance'),str) and state['current_utterance'].strip():return state['current_utterance'].strip()
-    match=re.search(r'患者当前发言[：:]\s*([^\n]+)',state.get('s_text',''))
+    match=re.search(r'患者当前发言[：:][ \t]*([^\r\n]+)',state.get('s_text',''))
     if match:return match[1].strip()
     raise ValueError('Current utterance absent; refusing previous-turn/default fallback')
 
@@ -22,6 +25,7 @@ def checked_embedding(vector,dimension=1024):
 def transition(state,action,doctor_reply,patient_reply,reward,next_annotation,embedder,terminal=False):
     if not 0<=int(action)<10 or int(action)!=action:raise ValueError('Invalid action')
     if not math.isfinite(float(reward)):raise ValueError('Invalid reward')
+    if not isinstance(doctor_reply,str) or not doctor_reply.strip():raise ValueError('Empty doctor reply')
     history=list(state.get('history',[]))+[{'role':'user','content':current_utterance(state)},
         {'role':'assistant','content':doctor_reply}]
     next_state=None

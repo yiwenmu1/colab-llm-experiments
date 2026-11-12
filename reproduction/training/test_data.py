@@ -1,5 +1,5 @@
 import unittest
-from data import build_examples,split_dialogues,encode
+from data import build_examples,split_dialogues,encode,collate
 from cprl_contracts import current_utterance,transition,checked_embedding
 class Tokenizer:
     eos_token_id=0
@@ -29,9 +29,19 @@ class Tests(unittest.TestCase):
         self.assertEqual(f['dialogue_index'],0)
         self.assertEqual(f['turn'],0)
         with self.assertRaises(ValueError):encode(e,Tokenizer(),c,1,256)
+    def test_padding_does_not_mask_true_eos(self):
+        try:import torch
+        except ImportError:self.skipTest('torch optional for CPU collation check')
+        features=[{'input_ids':[4,0],'attention_mask':[1,1],'labels':[-100,0]},
+                  {'input_ids':[5,6,0],'attention_mask':[1,1,1],'labels':[-100,6,0]}]
+        b=collate(features,0)
+        self.assertEqual(b['labels'][0].tolist(),[-100,0,-100])
+        self.assertEqual(b['attention_mask'][0].tolist(),[1,1,0])
+        self.assertEqual(b['labels'][1,-1].item(),0)
     def test_current_turn_never_previous_history(self):
         self.assertEqual(current_utterance({'context':'患者：旧发言','s_text':'患者当前发言：新发言\n认知偏差：灾难化'}),'新发言')
         with self.assertRaises(ValueError):current_utterance({'context':'患者：旧发言'})
+        with self.assertRaises(ValueError):current_utterance({'s_text':'患者当前发言：\n认知偏差：灾难化'})
     def test_next_state_uses_new_patient(self):
         gold={'bias_tags':'灾难化','risk_level':'中危','bias_intensity':'中等'}
         state={'current_utterance':'起始','history':[]}

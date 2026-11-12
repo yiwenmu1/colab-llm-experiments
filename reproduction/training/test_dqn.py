@@ -32,3 +32,14 @@ with tempfile.TemporaryDirectory() as tmp:
 print(json.dumps({'test':'original_ddqn_kl_synthetic_fixture_only','updates':30,'first_loss':losses[0],'last_loss':losses[-1],
     'policy_updated':True,'target_grad_absent':True,'all_terminal_batch_supported':True,'checkpoint_roundtrip':True,
     'clinical_or_policy_efficacy_evidence':False},indent=2))
+# A true nonterminal Double-DQN target check: online chooses action 1, target values it at 2.
+class FixedNet(nn.Module):
+    def __init__(self,values):super().__init__();self.q=nn.Parameter(torch.tensor(values,dtype=torch.float32))
+    def forward(self,x):return self.q.expand(x.shape[0],-1)
+online=FixedNet([0,1]+[0]*8);frozen=FixedNet([5,2]+[0]*8)
+replay=ns['ReplayBuffer'](32)
+for _ in range(32):replay.push(np.zeros(1024,dtype=np.float32),0,0.,np.zeros(1024,dtype=np.float32))
+_,q_loss,_=ns['optimize_model'](online,frozen,torch.optim.SGD(online.parameters(),lr=0),replay)
+assert abs(q_loss-1.1)<1e-6,q_loss
+assert all(p.grad is None for p in frozen.parameters())
+print('Double-DQN nonterminal target verified: gamma * target(online_argmax)=0.8*2; Huber loss=1.1')
